@@ -1,0 +1,47 @@
+{
+    "manifest_version": 3,
+    "name": "DOM Detective",
+    "version": "1.0.0",
+    "description": "Identifica y genera selectores para elementos HTML",
+    "permissions": [
+        "contextMenus",
+        "activeTab",
+        "storage",
+        "debugger"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "background": {
+        "service_worker": "background/background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content/selectors.js",
+                "content/inspector.js",
+                "content/network-panel.js",
+                "content/resource-tester.js",
+                "content/visual-selector.js",
+                "content/content.js"
+            ],
+            "css": [
+                "content/network-panel.css",
+                "content/visual-selector.css"
+            ],
+            "run_at": "document_end"
+        }
+    ],
+    "action": {
+        "default_popup": "popup/popup.html",
+        "default_title": "DOM Detective"
+    },
+    "icons": {
+        "16": "assets/icon16.png",
+        "48": "assets/icon48.png",
+        "128": "assets/icon128.png"
+    }
+}

@@ -1,0 +1,48 @@
+<!-- popup/popup.html -->
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOM Detective</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <img src="../assets/icon48.png" alt="DOM Detective" class="header-icon">
+            <h1>DOM Detective</h1>
+            <p class="subtitle">Inspector de elementos HTML</p>
+        </header>
+
+        <main>
+            <section class="instructions">
+                <h2>Uso rápido</h2>
+                <p>Click derecho → DOM Detective → Selector deseado</p>
+            </section>
+
+            <section class="features">
+                <h2>Otros análisis</h2>
+                <button id="fetch-xhr-btn" class="analysis-btn">
+                    Fetch & XHR
+                </button>
+                <button id="visual-selector-btn" class="analysis-btn">
+                    Selector visual
+                </button>
+            </section>
+        </main>
+
+        <footer>
+            <p class="developer">Desarrollado por Rodolfo Casan</p>
+            <a href="https://github.com/rodolfocasan" target="_blank" class="github-link">
+                https://github.com/rodolfocasan
+            </a>
+            <p class="version">v1.0.0</p>
+        </footer>
+    </div>
+    <script src="popup.js"></script>
+</body>
+
+</html>
