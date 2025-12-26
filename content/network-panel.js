@@ -35,6 +35,14 @@ initAfterReload();
 
 
 function openNetworkPanel() {
+    // Verificar si hay un panel minimizado
+    const floatingIndicator = document.getElementById('dd-floating-indicator');
+    if (floatingIndicator && networkPanel) {
+        // Si existe un panel minimizado, simplemente restaurarlo
+        restoreNetworkPanel();
+        return;
+    }
+
     if (networkPanel) {
         closeNetworkPanel();
     }
@@ -45,6 +53,14 @@ function openNetworkPanel() {
 
 
 async function checkMonitoringState() {
+    // Verificar si hay un panel minimizado antes de continuar
+    const floatingIndicator = document.getElementById('dd-floating-indicator');
+    if (floatingIndicator) {
+        // Si hay un indicador flotante, significa que hay un panel minimizado
+        // No hacer nada más, el panel ya fue restaurado en openNetworkPanel
+        return;
+    }
+
     chrome.runtime.sendMessage({ action: 'isMonitoring' }, (response) => {
         if (response && response.isMonitoring) {
             chrome.runtime.sendMessage({ action: 'getCurrentTabId' }, (tabResponse) => {
@@ -77,6 +93,11 @@ function getNetworkPanelHTML() {
         <div class="dd-network-header">
             <h2 class="dd-network-title">Fetch & XHR Monitor</h2>
             <div class="dd-network-header-controls">
+                <button class="dd-network-minimize" id="dd-minimize-panel" title="Minimizar">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14"></path>
+                    </svg>
+                </button>
                 <button class="dd-network-maximize" id="dd-maximize-panel" title="Maximizar">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
@@ -172,6 +193,9 @@ async function startAnalysis() {
 }
 
 
+let highlightedRequestIds = new Set();
+let auxiliaryDropdownOpen = false;
+
 async function displayRequests() {
     const content = document.getElementById('dd-network-content');
     if (!content) return;
@@ -185,7 +209,7 @@ async function displayRequests() {
 
         if (requests.length === 0) {
             lastRequestsCount = 0;
-            removeContentEventListener(); // Limpiar listeners antes de cambiar contenido
+            removeContentEventListener();
 
             content.innerHTML = `
                 <div class="dd-network-empty">
@@ -210,7 +234,6 @@ async function displayRequests() {
 
         const scrollPosition = content.scrollTop;
 
-        // Limpiar listeners antes de actualizar el contenido
         if (!isCapturing) {
             removeContentEventListener();
         }
@@ -219,11 +242,27 @@ async function displayRequests() {
 
         if (isCapturing) {
             html += '<button class="dd-network-stop-btn" id="dd-stop-monitoring">Detener análisis</button>';
+            html += `<span class="dd-network-count">${requests.length} solicitudes capturadas</span>`;
         } else {
             html += '<button class="dd-network-restart-btn" id="dd-restart-monitoring">Volver a iniciar análisis</button>';
+            html += `<span class="dd-network-count">${requests.length} solicitudes capturadas</span>`;
+
+            // Menú de funciones auxiliares (solo cuando no está capturando)
+            html += `
+                <div class="dd-auxiliary-menu">
+                    <button class="dd-auxiliary-toggle" id="dd-auxiliary-toggle">
+                        Funciones auxiliares
+                        <span class="dd-auxiliary-arrow" id="dd-auxiliary-arrow">▼</span>
+                    </button>
+                    <div class="dd-auxiliary-dropdown" id="dd-auxiliary-dropdown">
+                        <div class="dd-auxiliary-option" id="dd-auxiliary-visual-selector">
+                            Selector visual
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
-        html += `<span class="dd-network-count">${requests.length} solicitudes capturadas</span>`;
         html += '</div>';
 
         html += '<div class="dd-network-requests">';
@@ -233,12 +272,17 @@ async function displayRequests() {
                 request.status >= 400 ? 'error' : 'warning';
 
             const isOpen = currentOpenRequestId === request.id;
+            const isHighlighted = highlightedRequestIds.has(request.id);
+            const highlightClass = isHighlighted ? 'dd-request-item-highlighted' : '';
 
             html += `
-                <div class="dd-request-item" data-request-id="${request.id}">
+                <div class="dd-request-item ${highlightClass}" data-request-id="${request.id}">
                     <div class="dd-request-header ${!isCapturing ? 'dd-clickable' : ''}" data-toggle-id="${request.id}">
                         <div class="dd-request-info">
-                            <div class="dd-request-url">${escapeHTML(request.url)}</div>
+                            <div class="dd-request-url">
+                                ${escapeHTML(request.url)}
+                                ${isHighlighted ? '<span class="dd-highlighted-badge">RELACIONADO</span>' : ''}
+                            </div>
                             <div class="dd-request-meta">
                                 <span class="dd-request-method">${request.method}</span>
                                 ${request.status ? `<span class="dd-request-status ${statusClass}">${request.status}</span>` : ''}
@@ -266,6 +310,43 @@ async function displayRequests() {
         const restartBtn = document.getElementById('dd-restart-monitoring');
         if (restartBtn) {
             restartBtn.addEventListener('click', restartAnalysis);
+        }
+
+        // Listeners para menú auxiliar
+        const auxiliaryToggle = document.getElementById('dd-auxiliary-toggle');
+        const auxiliaryDropdown = document.getElementById('dd-auxiliary-dropdown');
+        const auxiliaryArrow = document.getElementById('dd-auxiliary-arrow');
+        const visualSelectorOption = document.getElementById('dd-auxiliary-visual-selector');
+
+        if (auxiliaryToggle && auxiliaryDropdown) {
+            auxiliaryToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                auxiliaryDropdownOpen = !auxiliaryDropdownOpen;
+                auxiliaryDropdown.classList.toggle('active', auxiliaryDropdownOpen);
+                if (auxiliaryArrow) {
+                    auxiliaryArrow.classList.toggle('open', auxiliaryDropdownOpen);
+                }
+            });
+
+            // Cerrar dropdown al hacer click fuera
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.dd-auxiliary-menu') && auxiliaryDropdownOpen) {
+                    auxiliaryDropdownOpen = false;
+                    auxiliaryDropdown.classList.remove('active');
+                    if (auxiliaryArrow) {
+                        auxiliaryArrow.classList.remove('open');
+                    }
+                }
+            });
+        }
+
+        if (visualSelectorOption) {
+            visualSelectorOption.addEventListener('click', () => {
+                auxiliaryDropdownOpen = false;
+                if (auxiliaryDropdown) auxiliaryDropdown.classList.remove('active');
+                if (auxiliaryArrow) auxiliaryArrow.classList.remove('open');
+                activateAuxiliaryVisualSelector();
+            });
         }
 
         if (!isCapturing) {
@@ -423,6 +504,9 @@ async function stopAnalysis() {
 
     stopRefreshing();
     isCapturing = false;
+
+    // Actualizar indicador flotante si está minimizado
+    updateFloatingIndicatorStatus();
 
     // Limpiar listeners antes de mostrar las requests detenidas
     removeContentEventListener();
@@ -871,12 +955,86 @@ function attachEventListeners() {
         closeBtn.addEventListener('click', closeNetworkPanel);
     }
 
+    const minimizeBtn = document.getElementById('dd-minimize-panel');
+    if (minimizeBtn) {
+        minimizeBtn.addEventListener('click', minimizeNetworkPanel);
+    }
+
     const maximizeBtn = document.getElementById('dd-maximize-panel');
     if (maximizeBtn) {
         maximizeBtn.addEventListener('click', toggleFullscreen);
     }
 }
 
+
+function minimizeNetworkPanel() {
+    if (!networkPanel) return;
+
+    networkPanel.style.display = 'none';
+
+    // Crear indicador flotante si no existe
+    let floatingIndicator = document.getElementById('dd-floating-indicator');
+    if (!floatingIndicator) {
+        floatingIndicator = document.createElement('div');
+        floatingIndicator.id = 'dd-floating-indicator';
+        floatingIndicator.className = 'dd-floating-indicator';
+
+        const statusClass = isCapturing ? 'dd-status-active' : 'dd-status-ready';
+        const statusText = isCapturing ? 'Capturando...' : 'Listo';
+
+        floatingIndicator.innerHTML = `
+            <div class="dd-floating-content">
+                <div class="dd-floating-status ${statusClass}"></div>
+                <div class="dd-floating-text">
+                    <div class="dd-floating-title">Fetch & XHR Monitor</div>
+                    <div class="dd-floating-subtitle">${statusText}</div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(floatingIndicator);
+
+        floatingIndicator.addEventListener('click', restoreNetworkPanel);
+    }
+
+    console.log('[DOM Detective] Panel minimizado');
+}
+
+function restoreNetworkPanel() {
+    if (networkPanel) {
+        networkPanel.style.display = 'flex';
+
+        // Si el panel estaba en fullscreen antes de minimizar, restaurar ese estado
+        if (isFullscreen) {
+            networkPanel.classList.add('dd-network-panel-fullscreen');
+        }
+    }
+
+    const floatingIndicator = document.getElementById('dd-floating-indicator');
+    if (floatingIndicator) {
+        floatingIndicator.remove();
+    }
+
+    console.log('[DOM Detective] Panel restaurado desde estado minimizado');
+}
+
+function updateFloatingIndicatorStatus() {
+    const floatingIndicator = document.getElementById('dd-floating-indicator');
+    if (!floatingIndicator) return;
+
+    const statusDot = floatingIndicator.querySelector('.dd-floating-status');
+    const subtitle = floatingIndicator.querySelector('.dd-floating-subtitle');
+
+    if (statusDot && subtitle) {
+        if (isCapturing) {
+            statusDot.className = 'dd-floating-status dd-status-active';
+            subtitle.textContent = 'Capturando...';
+        } else {
+            statusDot.className = 'dd-floating-status dd-status-ready';
+            subtitle.textContent = 'Listo';
+        }
+    }
+}
 
 function toggleFullscreen() {
     if (!networkPanel) return;
@@ -893,7 +1051,7 @@ function toggleFullscreen() {
                     <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
                 </svg>
             `;
-            maximizeBtn.title = 'Minimizar';
+            maximizeBtn.title = 'Restaurar';
         }
     } else {
         networkPanel.classList.remove('dd-network-panel-fullscreen');
@@ -908,6 +1066,141 @@ function toggleFullscreen() {
     }
 }
 
+function activateAuxiliaryVisualSelector() {
+    if (!networkPanel) return;
+
+    // Ocultar el panel de red
+    networkPanel.style.display = 'none';
+
+    // Exponer la función en el scope global
+    window.handleElementSelection = function (element) {
+        // Mostrar nuevamente el panel
+        if (networkPanel) {
+            networkPanel.style.display = 'flex';
+        }
+
+        // Analizar el elemento y encontrar requests relacionadas
+        analyzeElementAndHighlight(element);
+    };
+
+    // Función para restaurar el panel si se cierra el selector visual
+    window.restoreNetworkPanel = function () {
+        if (networkPanel) {
+            networkPanel.style.display = 'flex';
+        }
+    };
+
+    // Activar selector visual en modo auxiliar
+    if (typeof window.activateVisualSelector === 'function') {
+        window.activateVisualSelector(true, window.handleElementSelection);
+    } else {
+        console.error('[DOM Detective] activateVisualSelector no está disponible');
+        networkPanel.style.display = 'flex';
+        showNotification('[DOM Detective] Error al activar el selector visual');
+    }
+}
+
+async function analyzeElementAndHighlight(element) {
+    try {
+        // Limpiar resaltados anteriores
+        highlightedRequestIds.clear();
+
+        // Obtener todas las requests capturadas
+        chrome.runtime.sendMessage({ action: 'getNetworkRequests' }, (response) => {
+            if (!response || !response.requests) return;
+
+            const requests = response.requests;
+            const elementInfo = extractElementInfo(element);
+
+            // Buscar coincidencias en las respuestas
+            requests.forEach(request => {
+                if (isRequestRelatedToElement(request, elementInfo)) {
+                    highlightedRequestIds.add(request.id);
+                }
+            });
+
+            // Actualizar la vista con los resaltados
+            displayRequests();
+
+            if (highlightedRequestIds.size > 0) {
+                showNotification(`[DOM Detective] Se encontraron ${highlightedRequestIds.size} solicitud(es) relacionada(s)`);
+            } else {
+                showNotification('[DOM Detective] No se encontraron solicitudes relacionadas con el elemento');
+            }
+        });
+    } catch (error) {
+        console.error('[DOM Detective] Error al analizar elemento:', error);
+        showNotification('[DOM Detective] Error al analizar el elemento');
+    }
+}
+
+function extractElementInfo(element) {
+    const info = {
+        text: element.textContent?.trim() || '',
+        attributes: {},
+        dataset: {},
+        classes: Array.from(element.classList),
+        id: element.id,
+        tagName: element.tagName.toLowerCase()
+    };
+
+    // Extraer atributos
+    for (let attr of element.attributes) {
+        info.attributes[attr.name] = attr.value;
+    }
+
+    // Extraer data attributes
+    for (let key in element.dataset) {
+        info.dataset[key] = element.dataset[key];
+    }
+
+    // Buscar en elementos hijos también
+    const childTexts = Array.from(element.querySelectorAll('*'))
+        .map(el => el.textContent?.trim())
+        .filter(t => t && t.length > 3);
+
+    info.childTexts = [...new Set(childTexts)];
+
+    return info;
+}
+
+function isRequestRelatedToElement(request, elementInfo) {
+    if (!request.responseData) return false;
+
+    try {
+        let responseText = '';
+
+        if (typeof request.responseData === 'object') {
+            responseText = JSON.stringify(request.responseData).toLowerCase();
+        } else {
+            responseText = String(request.responseData).toLowerCase();
+        }
+
+        // Buscar coincidencias de texto
+        const textMatches = elementInfo.text.length > 5 &&
+            responseText.includes(elementInfo.text.toLowerCase());
+
+        // Buscar coincidencias en atributos data-*
+        const dataMatches = Object.values(elementInfo.dataset).some(value =>
+            value && value.length > 3 && responseText.includes(value.toLowerCase())
+        );
+
+        // Buscar coincidencias en ID
+        const idMatches = elementInfo.id &&
+            elementInfo.id.length > 3 &&
+            responseText.includes(elementInfo.id.toLowerCase());
+
+        // Buscar coincidencias en textos de hijos
+        const childTextMatches = elementInfo.childTexts.some(text =>
+            text.length > 5 && responseText.includes(text.toLowerCase())
+        );
+
+        return textMatches || dataMatches || idMatches || childTextMatches;
+    } catch (error) {
+        console.error('[DOM Detective] Error comparando request:', error);
+        return false;
+    }
+}
 
 async function closeNetworkPanel() {
     await chrome.storage.local.remove('panelShouldBeOpen');
@@ -928,10 +1221,18 @@ async function closeNetworkPanel() {
     currentOpenRequestId = null;
     lastRequestsCount = 0;
     isFullscreen = false;
+    highlightedRequestIds.clear();
+    auxiliaryDropdownOpen = false;
 
     if (networkPanel) {
         networkPanel.remove();
         networkPanel = null;
+    }
+
+    // Remover indicador flotante si existe
+    const floatingIndicator = document.getElementById('dd-floating-indicator');
+    if (floatingIndicator) {
+        floatingIndicator.remove();
     }
 
     closeConfirmModal();

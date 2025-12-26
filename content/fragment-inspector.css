@@ -1,0 +1,225 @@
+/* content/fragment-inspector.css */
+
+.dd-fragment-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 1200px;
+    height: 80vh;
+    background: #18181b;
+    border: 1px solid #27272a;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    z-index: 999998;
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    color: #fafafa;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.dd-fragment-panel-fullscreen {
+    top: 0;
+    left: 0;
+    transform: none;
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+}
+
+.dd-fragment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    background: #09090b;
+    border-bottom: 1px solid #27272a;
+}
+
+.dd-fragment-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fafafa;
+    margin: 0;
+}
+
+.dd-fragment-header-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.dd-fragment-maximize,
+.dd-fragment-close {
+    background: #27272a;
+    color: #fafafa;
+    border: 1px solid #3f3f46;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.dd-fragment-maximize:hover,
+.dd-fragment-close:hover {
+    background: #3f3f46;
+    border-color: #52525b;
+}
+
+.dd-fragment-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 24px;
+    background: #09090b;
+    border-bottom: 1px solid #27272a;
+}
+
+.dd-fragment-tab {
+    background: transparent;
+    color: #a1a1aa;
+    border: none;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.dd-fragment-tab:hover {
+    color: #fafafa;
+}
+
+.dd-fragment-tab.active {
+    color: #fafafa;
+    border-bottom-color: #fafafa;
+}
+
+.dd-fragment-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.dd-fragment-tab-content {
+    display: none;
+}
+
+.dd-fragment-tab-content.active {
+    display: block;
+}
+
+.dd-fragment-code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #27272a;
+}
+
+.dd-fragment-element-info {
+    font-size: 13px;
+    color: #a1a1aa;
+    font-family: 'Courier New', monospace;
+}
+
+.dd-fragment-copy-btn {
+    background: #27272a;
+    color: #fafafa;
+    border: 1px solid #3f3f46;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dd-fragment-copy-btn:hover {
+    background: #3f3f46;
+    border-color: #52525b;
+}
+
+.dd-fragment-copy-btn:active {
+    transform: scale(0.98);
+}
+
+.dd-fragment-code {
+    background: #09090b;
+    border: 1px solid #27272a;
+    border-radius: 8px;
+    padding: 20px;
+    overflow-x: auto;
+    margin: 0;
+}
+
+.dd-fragment-code code {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #d4d4d8;
+    white-space: pre;
+}
+
+.dd-fragment-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: #a1a1aa;
+    font-size: 14px;
+}
+
+.dd-fragment-error {
+    background: #7f1d1d;
+    border: 1px solid #991b1b;
+    border-radius: 8px;
+    padding: 20px;
+    color: #fca5a5;
+    font-size: 14px;
+    text-align: center;
+}
+
+.dd-fragment-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.dd-fragment-content::-webkit-scrollbar-track {
+    background: #09090b;
+}
+
+.dd-fragment-content::-webkit-scrollbar-thumb {
+    background: #27272a;
+    border-radius: 4px;
+}
+
+.dd-fragment-content::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46;
+}
+
+.dd-fragment-code::-webkit-scrollbar {
+    height: 8px;
+}
+
+.dd-fragment-code::-webkit-scrollbar-track {
+    background: #18181b;
+}
+
+.dd-fragment-code::-webkit-scrollbar-thumb {
+    background: #27272a;
+    border-radius: 4px;
+}
+
+.dd-fragment-code::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46;
+}

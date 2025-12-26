@@ -24,16 +24,24 @@ async function initVisualSelector() {
 initVisualSelector();
 
 
-function activateVisualSelector() {
+let isAuxiliaryMode = false;
+let auxiliaryCallback = null;
+
+function activateVisualSelector(auxiliary = false, callback = null) {
     if (visualSelectorActive) return;
 
     visualSelectorActive = true;
+    isAuxiliaryMode = auxiliary;
+    auxiliaryCallback = callback;
+
+    // Siempre crear el panel de control (tanto en modo normal como auxiliar)
     createControlPanel();
+
     createHighlightOverlay();
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('click', handleElementClick, true);
 
-    console.log('[DOM Detective] Selector visual activado');
+    console.log('[DOM Detective] Selector visual activado' + (isAuxiliaryMode ? ' (modo auxiliar)' : ''));
 }
 
 
@@ -41,6 +49,8 @@ function deactivateVisualSelector() {
     if (!visualSelectorActive) return;
 
     visualSelectorActive = false;
+    isAuxiliaryMode = false;
+    auxiliaryCallback = null;
     removeControlPanel();
     removeHighlightOverlay();
     removeSelectorButtons();
@@ -57,9 +67,21 @@ function createControlPanel() {
 
     controlPanel = document.createElement('div');
     controlPanel.className = 'dd-vs-control-panel';
+
+    // Cambiar el texto de las instrucciones según el modo
+    const instructionsHTML = isAuxiliaryMode
+        ? `<div class="dd-vs-panel-instructions">
+                <p>Mueve el cursor sobre cualquier elemento para resaltarlo.</p>
+                <p>Haz clic para identificar las solicitudes relacionadas.</p>
+            </div>`
+        : `<div class="dd-vs-panel-instructions">
+                <p>Mueve el cursor sobre cualquier elemento para resaltarlo.</p>
+                <p>Haz clic para seleccionar y copiar selectores.</p>
+            </div>`;
+
     controlPanel.innerHTML = `
         <div class="dd-vs-panel-header">
-            <h3 class="dd-vs-panel-title">Selector Visual</h3>
+            <h3 class="dd-vs-panel-title">Selector Visual${isAuxiliaryMode ? ' (F. A.)' : ''}</h3>
             <button class="dd-vs-panel-close" id="dd-vs-close">×</button>
         </div>
         <div class="dd-vs-panel-content">
@@ -67,10 +89,7 @@ function createControlPanel() {
                 <label class="dd-vs-panel-label">Color de resaltado:</label>
                 <input type="color" class="dd-vs-color-input" id="dd-vs-color-picker" value="${selectedColor}">
             </div>
-            <div class="dd-vs-panel-instructions">
-                <p>Mueve el cursor sobre cualquier elemento para resaltarlo.</p>
-                <p>Haz clic para seleccionar y copiar selectores.</p>
-            </div>
+            ${instructionsHTML}
         </div>
     `;
 
@@ -81,6 +100,11 @@ function createControlPanel() {
         closeBtn.addEventListener('click', () => {
             deactivateVisualSelector();
             chrome.storage.local.set({ visualSelectorActive: false });
+
+            // Si estamos en modo auxiliar, restaurar el panel de red
+            if (isAuxiliaryMode && typeof window.restoreNetworkPanel === 'function') {
+                window.restoreNetworkPanel();
+            }
         });
     }
 
@@ -166,6 +190,27 @@ function handleElementClick(event) {
 
     event.preventDefault();
     event.stopPropagation();
+
+    // Si estamos en modo auxiliar, ejecutar callback y desactivar
+    if (isAuxiliaryMode && currentHighlightedElement) {
+        const element = currentHighlightedElement;
+
+        console.log('[DOM Detective] Elemento seleccionado en modo auxiliar:', element);
+
+        // Verificar que el callback exista antes de ejecutarlo
+        if (typeof auxiliaryCallback === 'function') {
+            auxiliaryCallback(element);
+        } else {
+            // Si no hay callback, buscar la función en el scope global
+            if (typeof window.handleElementSelection === 'function') {
+                window.handleElementSelection(element);
+            }
+        }
+
+        // Desactivar después de ejecutar el callback
+        deactivateVisualSelector();
+        return;
+    }
 
     showSelectorButtons(event);
 }

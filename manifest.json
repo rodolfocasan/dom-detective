@@ -26,11 +26,13 @@
                 "content/network-panel.js",
                 "content/resource-tester.js",
                 "content/visual-selector.js",
+                "content/fragment-inspector.js",
                 "content/content.js"
             ],
             "css": [
                 "content/network-panel.css",
-                "content/visual-selector.css"
+                "content/visual-selector.css",
+                "content/fragment-inspector.css"
             ],
             "run_at": "document_end"
         }
